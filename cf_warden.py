@@ -123,12 +123,14 @@ def save_state(cfg, state):
 
 def acquire_lock(cfg):
     path = Path(cfg['STATE_DIR']) / 'cf-warden.lock'
+    fd = None
     try:
         fd = open(path, 'w')
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         return fd
     except OSError:
-        fd.close()
+        if fd is not None:
+            fd.close()
         return None
 
 
