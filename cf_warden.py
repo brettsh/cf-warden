@@ -37,7 +37,7 @@ REQUIRED = [
     'COOLDOWN_SEC', 'ALERT_COOLDOWN_SEC',
     'STATE_DIR', 'LOG_FILE', 'LOG_LEVEL',
 ]
-EMAIL_REQUIRED = ['EMAIL_TO', 'EMAIL_FROM', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USERNAME', 'SMTP_PASSWORD']
+EMAIL_REQUIRED = ['EMAIL_TO', 'EMAIL_FROM']
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -248,12 +248,13 @@ def _send_email(cfg, subject, body):
     msg['Subject'] = subject
     msg['From'] = cfg['EMAIL_FROM']
     msg['To'] = cfg['EMAIL_TO']
-    port = int(cfg['SMTP_PORT'])
+    host = cfg.get('SMTP_HOST', 'localhost')
+    port = int(cfg.get('SMTP_PORT', '25'))
     try:
         if port == 465:
-            smtp = smtplib.SMTP_SSL(cfg['SMTP_HOST'], port)
+            smtp = smtplib.SMTP_SSL(host, port)
         else:
-            smtp = smtplib.SMTP(cfg['SMTP_HOST'], port)
+            smtp = smtplib.SMTP(host, port)
         with smtp as s:
             if port == 587:
                 s.ehlo()

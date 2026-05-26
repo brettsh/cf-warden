@@ -22,10 +22,11 @@ SITE_NAME=example.com
 EMAIL_ENABLED=true
 EMAIL_TO=you@example.com
 EMAIL_FROM=alerts@example.com
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_USERNAME=user@example.com
-SMTP_PASSWORD=yourpassword
+# SMTP settings are optional. If omitted, sends via localhost:25 (postfix/sendmail).
+# SMTP_HOST=smtp.example.com
+# SMTP_PORT=587
+# SMTP_USERNAME=user@example.com
+# SMTP_PASSWORD=yourpassword
 
 # ── Scoring: CPU Load ─────────────────────────────────────────────────────────
 LOAD_HIGH_THRESHOLD=12
