@@ -132,8 +132,10 @@ def acquire_lock(cfg):
     except PermissionError as exc:
         if fd is not None:
             fd.close()
+        import pwd
+        user = pwd.getpwuid(os.getuid()).pw_name
         _die(f"cannot acquire lockfile {path}: {exc}\n"
-             f"If the file is owned by root, fix with: sudo chown {os.getenv('USER')} {path}")
+             f"Fix with: sudo chown {user} {path}")
     except OSError:
         if fd is not None:
             fd.close()
