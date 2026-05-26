@@ -1,0 +1,50 @@
+# cf-warden settings
+# Copy to settings.conf and fill in your values.
+# Format: KEY=VALUE, one per line. Comments start with #.
+
+# ── Cloudflare ────────────────────────────────────────────────────────────────
+CF_ZONE_ID=your-zone-id
+CF_API_TOKEN=your-api-token
+CF_ATTACK_MODE=under_attack
+CF_NORMAL_MODE=medium
+
+# ── Site ──────────────────────────────────────────────────────────────────────
+# Used in alert email subjects. Defaults to CF_ZONE_ID if not set.
+SITE_NAME=example.com
+
+# ── Email Alerts ──────────────────────────────────────────────────────────────
+EMAIL_ENABLED=true
+EMAIL_TO=you@example.com
+EMAIL_FROM=alerts@example.com
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USERNAME=user@example.com
+SMTP_PASSWORD=yourpassword
+
+# ── Scoring: CPU Load ─────────────────────────────────────────────────────────
+LOAD_HIGH_THRESHOLD=12
+LOAD_HIGH_POINTS=2
+LOAD_HIGH_BONUS_THRESHOLD=20
+LOAD_HIGH_BONUS_POINTS=2
+LOAD_LOW_THRESHOLD=6
+
+# ── Scoring: Request Rate ─────────────────────────────────────────────────────
+REQ_HIGH_THRESHOLD=400
+REQ_HIGH_POINTS=2
+REQ_HIGH_BONUS_THRESHOLD=800
+REQ_HIGH_BONUS_POINTS=2
+ACCESS_LOG_PATH=/var/log/nginx/access.log
+ACCESS_LOG_WINDOW_SEC=60
+
+# ── Trigger Behaviour ─────────────────────────────────────────────────────────
+SCORE_TRIGGER=4
+SCORE_CONFIRM_COUNT=2
+COOLDOWN_SEC=900
+ALERT_COOLDOWN_SEC=900
+
+# ── Paths and Logging ─────────────────────────────────────────────────────────
+STATE_DIR=/var/tmp/cf-warden
+LOG_FILE=/var/log/cf-warden.log
+LOG_LEVEL=INFO
+LOG_MAX_BYTES=10485760
+LOG_BACKUP_COUNT=3
