@@ -5,6 +5,7 @@ import fcntl
 import json
 import logging
 import logging.handlers
+import os
 import re
 import smtplib
 import sys
@@ -128,6 +129,11 @@ def acquire_lock(cfg):
         fd = open(path, 'w')
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         return fd
+    except PermissionError as exc:
+        if fd is not None:
+            fd.close()
+        _die(f"cannot acquire lockfile {path}: {exc}\n"
+             f"If the file is owned by root, fix with: sudo chown {os.getenv('USER')} {path}")
     except OSError:
         if fd is not None:
             fd.close()
