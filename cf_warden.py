@@ -296,8 +296,8 @@ def run_cron(cfg, state):
     confirm = int(cfg['SCORE_CONFIRM_COUNT'])
     mode = state.get('mode', 'normal')
 
-    logging.debug("load1=%.2f load5=%.2f reqs=%d score=%d mode=%s",
-                  load1, load5, reqs, score, mode)
+    logging.info("load1=%.2f load5=%.2f reqs=%d score=%d/%d mode=%s",
+                 load1, load5, reqs, score, trigger, mode)
 
     if mode == 'normal':
         if score >= trigger:
