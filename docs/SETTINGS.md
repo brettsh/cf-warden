@@ -25,7 +25,7 @@ Copy settings.conf.example and fill in your values.
 | EMAIL_ENABLED     | true                       | Enable or disable email alerts               |
 | EMAIL_TO          | you@example.com            | Alert recipient                              |
 | EMAIL_FROM        | alerts@example.com         | From address                                 |
-| SMTP_HOST         | smtp.example.com           | SMTP server hostname (optional — defaults to localhost) |
+| SMTP_HOST         | smtp.example.com           | SMTP server hostname (optional — if omitted, uses `sendmail` binary) |
 | SMTP_PORT         | 587                        | SMTP port (optional — defaults to 25); auto-detects mode: 465=SSL, 587=STARTTLS, other=plain |
 | SMTP_USERNAME     | user@example.com           | SMTP login username (optional)               |
 | SMTP_PASSWORD     | yourpassword               | SMTP login password (optional)               |

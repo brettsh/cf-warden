@@ -8,6 +8,7 @@ import logging.handlers
 import os
 import re
 import smtplib
+import subprocess
 import sys
 import time
 import urllib.error
@@ -248,21 +249,30 @@ def _send_email(cfg, subject, body):
     msg['Subject'] = subject
     msg['From'] = cfg['EMAIL_FROM']
     msg['To'] = cfg['EMAIL_TO']
-    host = cfg.get('SMTP_HOST', 'localhost')
-    port = int(cfg.get('SMTP_PORT', '25'))
     try:
-        if port == 465:
-            smtp = smtplib.SMTP_SSL(host, port)
+        if not cfg.get('SMTP_HOST'):
+            proc = subprocess.run(
+                ['sendmail', '-t', '-oi'],
+                input=msg.as_string().encode(),
+                capture_output=True,
+            )
+            if proc.returncode != 0:
+                raise RuntimeError(proc.stderr.decode(errors='replace').strip())
         else:
-            smtp = smtplib.SMTP(host, port)
-        with smtp as s:
-            if port == 587:
-                s.ehlo()
-                s.starttls()
-                s.ehlo()
-            if cfg.get('SMTP_USERNAME'):
-                s.login(cfg['SMTP_USERNAME'], cfg['SMTP_PASSWORD'])
-            s.send_message(msg)
+            host = cfg['SMTP_HOST']
+            port = int(cfg.get('SMTP_PORT', '25'))
+            if port == 465:
+                smtp = smtplib.SMTP_SSL(host, port)
+            else:
+                smtp = smtplib.SMTP(host, port)
+            with smtp as s:
+                if port == 587:
+                    s.ehlo()
+                    s.starttls()
+                    s.ehlo()
+                if cfg.get('SMTP_USERNAME'):
+                    s.login(cfg['SMTP_USERNAME'], cfg['SMTP_PASSWORD'])
+                s.send_message(msg)
     except Exception as exc:
         logging.error("Email failed: %s", exc)
 
