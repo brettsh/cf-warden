@@ -233,6 +233,9 @@ def cf_get_mode(cfg):
 
 
 def cf_set_mode(cfg, mode):
+    if cfg.get('DRY_RUN', 'false').lower() == 'true':
+        logging.info("DRY RUN: would set CF security level to %s (no API call made)", mode)
+        return
     _cf_request(cfg, 'PATCH', f"/zones/{cfg['CF_ZONE_ID']}/settings/security_level", {'value': mode})
 
 

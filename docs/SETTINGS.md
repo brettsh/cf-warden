@@ -3,6 +3,12 @@
 All configuration lives in settings.conf (gitignored).
 Copy settings.conf.example and fill in your values.
 
+## Mode
+
+| Setting | Example | Description |
+|---------|---------|-------------|
+| DRY_RUN | false   | Set to `true` to simulate mode switches without calling the CF API. State, scoring, and alerts behave normally — only the API call is skipped. |
+
 ## Cloudflare
 
 | Setting         | Example              | Description                                      |

@@ -2,6 +2,12 @@
 # Copy to settings.conf and fill in your values.
 # Format: KEY=VALUE, one per line. Comments start with #.
 
+# ── Mode ──────────────────────────────────────────────────────────────────────
+# Set to true to simulate mode switches without calling the Cloudflare API.
+# State, scoring, and alerts all behave normally — only the CF API call is
+# skipped. Safe to use on dev servers sharing the same settings.conf.
+DRY_RUN=false
+
 # ── Cloudflare ────────────────────────────────────────────────────────────────
 CF_ZONE_ID=your-zone-id
 CF_API_TOKEN=your-api-token
