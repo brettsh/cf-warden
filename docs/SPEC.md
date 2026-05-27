@@ -98,7 +98,7 @@ is extreme. This discriminates between legitimate load and actual attacks.
 - Sent on: mode change, mode change failure, API read error
 - Attack alerts suppressed during sustained attack via ALERT_COOLDOWN_SEC to avoid
   inbox flooding
-- Uses SMTP (configurable host/port), not hardcoded sendmail
+- If SMTP_HOST is omitted, sends via the local `sendmail` binary; otherwise uses SMTP with auto-detected mode (465=SSL, 587=STARTTLS, other=plain)
 
 ## Concurrency
 - A lockfile in STATE_DIR is acquired with an exclusive flock on startup

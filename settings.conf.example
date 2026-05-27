@@ -22,32 +22,30 @@ SITE_NAME=example.com
 EMAIL_ENABLED=true
 EMAIL_TO=you@example.com
 EMAIL_FROM=alerts@example.com
-# SMTP settings are optional. If omitted, sends via localhost:25 (postfix/sendmail).
+# SMTP settings are optional. If omitted, sends via the local sendmail binary.
 # SMTP_HOST=smtp.example.com
 # SMTP_PORT=587
 # SMTP_USERNAME=user@example.com
 # SMTP_PASSWORD=yourpassword
 
 # ── Scoring: CPU Load ─────────────────────────────────────────────────────────
-LOAD_HIGH_THRESHOLD=12
-LOAD_HIGH_POINTS=2
-LOAD_HIGH_BONUS_THRESHOLD=20
-LOAD_HIGH_BONUS_POINTS=2
-LOAD_LOW_THRESHOLD=6
+# score contribution = int(load1 / LOAD_SCORE_DIVISOR)
+# e.g. load=17 + 877 reqs → 101 pts (triggers); load=25 alone → 92 pts (safe)
+LOAD_SCORE_DIVISOR=0.27
+LOAD_LOW_THRESHOLD=4
 
 # ── Scoring: Request Rate ─────────────────────────────────────────────────────
-REQ_HIGH_THRESHOLD=400
-REQ_HIGH_POINTS=2
-REQ_HIGH_BONUS_THRESHOLD=800
-REQ_HIGH_BONUS_POINTS=2
+# score contribution = int(requests / REQ_SCORE_DIVISOR)
+# e.g. 1000 req/60s → 40 pts; 2500 req/60s → 100 pts (triggers alone)
+REQ_SCORE_DIVISOR=25
 ACCESS_LOG_PATH=/var/log/nginx/access.log
 ACCESS_LOG_WINDOW_SEC=60
 
 # ── Trigger Behaviour ─────────────────────────────────────────────────────────
-SCORE_TRIGGER=4
+SCORE_TRIGGER=100
 SCORE_CONFIRM_COUNT=1
-COOLDOWN_SEC=900
-ALERT_COOLDOWN_SEC=900
+COOLDOWN_SEC=600
+ALERT_COOLDOWN_SEC=600
 
 # ── Paths and Logging ─────────────────────────────────────────────────────────
 STATE_DIR=/var/tmp/cf-warden

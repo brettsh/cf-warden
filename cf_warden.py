@@ -28,11 +28,8 @@ CHUNK = 8192
 REQUIRED = [
     'CF_ZONE_ID', 'CF_API_TOKEN', 'CF_ATTACK_MODE', 'CF_NORMAL_MODE',
     'EMAIL_ENABLED',
-    'LOAD_HIGH_THRESHOLD', 'LOAD_HIGH_POINTS',
-    'LOAD_HIGH_BONUS_THRESHOLD', 'LOAD_HIGH_BONUS_POINTS',
-    'LOAD_LOW_THRESHOLD',
-    'REQ_HIGH_THRESHOLD', 'REQ_HIGH_POINTS',
-    'REQ_HIGH_BONUS_THRESHOLD', 'REQ_HIGH_BONUS_POINTS',
+    'LOAD_SCORE_DIVISOR', 'LOAD_LOW_THRESHOLD',
+    'REQ_SCORE_DIVISOR',
     'ACCESS_LOG_PATH', 'ACCESS_LOG_WINDOW_SEC',
     'SCORE_TRIGGER', 'SCORE_CONFIRM_COUNT',
     'COOLDOWN_SEC', 'ALERT_COOLDOWN_SEC',
@@ -75,6 +72,42 @@ def load_config():
     cfg.setdefault('SITE_NAME', cfg['CF_ZONE_ID'])
     cfg.setdefault('LOG_MAX_BYTES', '10485760')
     cfg.setdefault('LOG_BACKUP_COUNT', '3')
+
+    _INT_KEYS = [
+        'REQ_SCORE_DIVISOR',
+        'ACCESS_LOG_WINDOW_SEC', 'SCORE_TRIGGER', 'SCORE_CONFIRM_COUNT',
+        'COOLDOWN_SEC', 'ALERT_COOLDOWN_SEC', 'LOG_MAX_BYTES', 'LOG_BACKUP_COUNT',
+    ]
+    _FLOAT_KEYS = ['LOAD_SCORE_DIVISOR', 'LOAD_LOW_THRESHOLD']
+
+    errors = []
+    for k in _INT_KEYS:
+        try:
+            int(cfg[k])
+        except (ValueError, KeyError):
+            errors.append(f"{k} must be an integer (got {cfg.get(k)!r})")
+    for k in _FLOAT_KEYS:
+        try:
+            float(cfg[k])
+        except (ValueError, KeyError):
+            errors.append(f"{k} must be a number (got {cfg.get(k)!r})")
+    if 'SMTP_PORT' in cfg:
+        try:
+            int(cfg['SMTP_PORT'])
+        except ValueError:
+            errors.append(f"SMTP_PORT must be an integer (got {cfg['SMTP_PORT']!r})")
+
+    if not errors:
+        if float(cfg['LOAD_SCORE_DIVISOR']) <= 0:
+            errors.append("LOAD_SCORE_DIVISOR must be greater than 0")
+        if int(cfg['REQ_SCORE_DIVISOR']) <= 0:
+            errors.append("REQ_SCORE_DIVISOR must be greater than 0")
+        if cfg.get('SMTP_HOST') and cfg.get('SMTP_USERNAME') and 'SMTP_PASSWORD' not in cfg:
+            errors.append("SMTP_USERNAME is set but SMTP_PASSWORD is missing")
+
+    if errors:
+        _die("config errors:\n  " + "\n  ".join(errors))
+
     return cfg
 
 
@@ -106,12 +139,20 @@ _DEFAULT_STATE = {'mode': 'normal', 'last_switch': 0.0, 'consecutive_count': 0, 
 def load_state(cfg):
     p = Path(cfg['STATE_DIR']) / 'state.json'
     if not p.exists():
-        return None
+        return None, False
     try:
-        return json.loads(p.read_text())
-    except Exception:
-        logging.warning("State file corrupt, resetting to defaults")
-        return dict(_DEFAULT_STATE)
+        data = json.loads(p.read_text())
+        if not isinstance(data, dict):
+            raise ValueError("not a JSON object")
+        return data, False
+    except Exception as exc:
+        bad = p.with_suffix(f'.corrupt.{int(time.time())}')
+        try:
+            p.rename(bad)
+            logging.warning("State file corrupt (%s) — saved as %s, bootstrapping from CF API", exc, bad.name)
+        except OSError:
+            logging.warning("State file corrupt (%s) — could not preserve, bootstrapping from CF API", exc)
+        return None, True
 
 
 def save_state(cfg, state):
@@ -191,16 +232,9 @@ def count_requests(cfg):
 # ── Scoring ───────────────────────────────────────────────────────────────────
 
 def compute_score(cfg, load1, reqs):
-    score = 0
-    if load1 > float(cfg['LOAD_HIGH_THRESHOLD']):
-        score += int(cfg['LOAD_HIGH_POINTS'])
-    if load1 > float(cfg['LOAD_HIGH_BONUS_THRESHOLD']):
-        score += int(cfg['LOAD_HIGH_BONUS_POINTS'])
-    if reqs > int(cfg['REQ_HIGH_THRESHOLD']):
-        score += int(cfg['REQ_HIGH_POINTS'])
-    if reqs > int(cfg['REQ_HIGH_BONUS_THRESHOLD']):
-        score += int(cfg['REQ_HIGH_BONUS_POINTS'])
-    return score
+    load_score = int(load1 / float(cfg['LOAD_SCORE_DIVISOR']))
+    req_score = int(reqs / int(cfg['REQ_SCORE_DIVISOR']))
+    return load_score + req_score
 
 
 # ── CF API ────────────────────────────────────────────────────────────────────
@@ -325,9 +359,9 @@ def run_cron(cfg, state):
                     logging.info("Attack mode activated")
                     alert(cfg, state,
                           f"[cf-warden] Attack mode activated — {_site(cfg)}",
-                          f"Load: {load1:.2f}\n"
-                          f"Score: {score} (threshold: {trigger})\n"
+                          f"CPU Load: {load1:.2f}\n"
                           f"Requests: {reqs}/{cfg['ACCESS_LOG_WINDOW_SEC']}s\n"
+                          f"Score: {score} (threshold: {trigger})\n"
                           f"Activated: {_ts(now)}",
                           rate_limit=False)
                 except Exception as exc:
@@ -517,7 +551,8 @@ def main():
 
     if cmd == 'status':
         logging.basicConfig(level=logging.WARNING, handlers=[logging.NullHandler()])
-        state = load_state(cfg) or dict(_DEFAULT_STATE)
+        state, _ = load_state(cfg)
+        state = state or dict(_DEFAULT_STATE)
         cmd_status(cfg, state)
         return
 
@@ -532,10 +567,11 @@ def main():
         sys.exit(0)
 
     try:
-        state = load_state(cfg)
+        state, was_corrupt = load_state(cfg)
 
         if state is None:
-            logging.info("First run: bootstrapping state from CF API")
+            logging.info("%s: bootstrapping state from CF API",
+                         "Corrupt state file" if was_corrupt else "First run")
             try:
                 live = cf_get_mode(cfg)
                 initial = 'attack' if live == cfg['CF_ATTACK_MODE'] else 'normal'
@@ -548,6 +584,12 @@ def main():
             if initial == 'attack':
                 state['last_switch'] = time.time()
             save_state(cfg, state)
+            if was_corrupt:
+                alert(cfg, state,
+                      f"[cf-warden] State file corrupt — {_site(cfg)}",
+                      f"State file was corrupt and could not be parsed.\n"
+                      f"Bootstrapped from Cloudflare API: local mode set to {initial}.",
+                      rate_limit=False)
 
         if cmd == 'run':
             run_cron(cfg, state)

@@ -33,31 +33,25 @@ Copy settings.conf.example and fill in your values.
 
 ## Scoring — CPU Load
 
-| Setting                   | Example | Description                                      |
-|---------------------------|---------|--------------------------------------------------|
-| LOAD_HIGH_THRESHOLD       | 12      | 1-min load above this scores LOAD_HIGH_POINTS    |
-| LOAD_HIGH_POINTS          | 2       | Points awarded at base high load                 |
-| LOAD_HIGH_BONUS_THRESHOLD | 20      | 1-min load above this adds LOAD_HIGH_BONUS_POINTS|
-| LOAD_HIGH_BONUS_POINTS    | 2       | Bonus points for severe load                     |
-| LOAD_LOW_THRESHOLD        | 6       | 5-min load below this allows turning OFF         |
+| Setting            | Example | Description                                                        |
+|--------------------|---------|--------------------------------------------------------------------|
+| LOAD_SCORE_DIVISOR | 0.15    | Score contribution = int(load1 / LOAD_SCORE_DIVISOR); load=15 → 100 pts |
+| LOAD_LOW_THRESHOLD | 4       | 5-min load below this allows turning OFF                           |
 
 ## Scoring — Request Rate
 
-| Setting                  | Example | Description                                         |
-|--------------------------|---------|-----------------------------------------------------|
-| REQ_HIGH_THRESHOLD       | 400     | Requests/60s above this scores REQ_HIGH_POINTS      |
-| REQ_HIGH_POINTS          | 2       | Points awarded at base high request rate            |
-| REQ_HIGH_BONUS_THRESHOLD | 800     | Requests/60s above this adds REQ_HIGH_BONUS_POINTS  |
-| REQ_HIGH_BONUS_POINTS    | 2       | Bonus points for extreme request rate               |
-| ACCESS_LOG_PATH          | /var/log/nginx/access.log | Path to web server access log (nginx or Apache) |
-| ACCESS_LOG_WINDOW_SEC    | 60      | Seconds of log history to count requests from       |
+| Setting           | Example | Description                                                          |
+|-------------------|---------|----------------------------------------------------------------------|
+| REQ_SCORE_DIVISOR | 10      | Score contribution = int(reqs / REQ_SCORE_DIVISOR); 1000 req → 100 pts |
+| ACCESS_LOG_PATH   | /var/log/nginx/access.log | Path to web server access log (nginx or Apache)    |
+| ACCESS_LOG_WINDOW_SEC | 60  | Seconds of log history to count requests from                        |
 
 ## Trigger Behaviour
 
 | Setting             | Example | Description                                            |
 |---------------------|---------|--------------------------------------------------------|
-| SCORE_TRIGGER       | 4       | Score must reach this to potentially trigger           |
-| SCORE_CONFIRM_COUNT | 2       | Consecutive runs above SCORE_TRIGGER before switching  |
+| SCORE_TRIGGER       | 100     | Score must reach this to potentially trigger           |
+| SCORE_CONFIRM_COUNT | 1       | Consecutive runs above SCORE_TRIGGER before switching  |
 | COOLDOWN_SEC        | 900     | Seconds to wait after switching before switching back  |
 | ALERT_COOLDOWN_SEC  | 900     | Seconds between repeat alert emails during an attack   |
 
