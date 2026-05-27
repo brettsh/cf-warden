@@ -1,2 +1,10 @@
 settings.conf
+AGENTS.md
+CLAUDE.md
+CONTEXT.md
+__pycache__/
+*.swp
+.claude/
 *.log
+.env
+.DS_Store"
