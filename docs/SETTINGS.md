@@ -35,14 +35,14 @@ Copy settings.conf.example and fill in your values.
 
 | Setting            | Example | Description                                                        |
 |--------------------|---------|--------------------------------------------------------------------|
-| LOAD_SCORE_DIVISOR | 0.15    | Score contribution = int(load1 / LOAD_SCORE_DIVISOR); load=15 → 100 pts |
+| LOAD_SCORE_DIVISOR | 0.27    | Score contribution = int(load1 / LOAD_SCORE_DIVISOR); load=28 → 103 pts (triggers alone) |
 | LOAD_LOW_THRESHOLD | 4       | 5-min load below this allows turning OFF                           |
 
 ## Scoring — Request Rate
 
 | Setting           | Example | Description                                                          |
 |-------------------|---------|----------------------------------------------------------------------|
-| REQ_SCORE_DIVISOR | 10      | Score contribution = int(reqs / REQ_SCORE_DIVISOR); 1000 req → 100 pts |
+| REQ_SCORE_DIVISOR | 25      | Score contribution = int(reqs / REQ_SCORE_DIVISOR); 2500 req → 100 pts (triggers alone) |
 | ACCESS_LOG_PATH   | /var/log/nginx/access.log | Path to web server access log (nginx or Apache)    |
 | ACCESS_LOG_WINDOW_SEC | 60  | Seconds of log history to count requests from                        |
 
