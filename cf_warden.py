@@ -197,10 +197,14 @@ def acquire_lock(cfg):
         user = pwd.getpwuid(os.getuid()).pw_name
         _die(f"cannot acquire lockfile {path}: {exc}\n"
              f"Fix with: sudo chown {user} {path}")
-    except OSError:
+    except BlockingIOError:
         if fd is not None:
             fd.close()
         return None
+    except OSError as exc:
+        if fd is not None:
+            fd.close()
+        _die(f"cannot acquire lockfile {path}: {exc}")
 
 
 # ── Signals ───────────────────────────────────────────────────────────────────
@@ -351,6 +355,7 @@ def alert(cfg, state, subject, body, rate_limit=True):
 def run_cron(cfg, state):
     now = time.time()
     load1, load5 = read_cpu_load()
+    dry_run = cfg.get('DRY_RUN', 'false').lower() == 'true'
 
     reqs = 0
     try:
@@ -374,28 +379,29 @@ def run_cron(cfg, state):
             state['consecutive_count'] = state.get('consecutive_count', 0) + 1
             logging.info("High score %d/%d (run %d/%d)",
                          score, trigger, state['consecutive_count'], confirm)
-            try:
-                live = cf_get_mode(cfg)
-                if live == cfg['CF_ATTACK_MODE']:
-                    logging.warning("Drift: CF already %s while local=normal — adopting attack state", live)
-                    state.update(mode='attack', last_switch=now, consecutive_count=0)
-                    alert(cfg, state,
-                          f"[cf-warden] Drift corrected — {_site(cfg)}",
-                          f"CF was already {live!r} during a high-score run.\n"
-                          f"Local state adopted attack mode.")
-                    save_state(cfg, state)
-                    return
-                if state['consecutive_count'] < confirm and live != cfg['CF_NORMAL_MODE']:
-                    logging.warning("Drift: CF=%s but local=normal confirmation pending — restoring %s",
-                                    live, cfg['CF_NORMAL_MODE'])
-                    cf_set_mode(cfg, cfg['CF_NORMAL_MODE'])
-                    logging.info("Normal mode restored after drift during confirmation window")
-                    alert(cfg, state,
-                          f"[cf-warden] Drift corrected — {_site(cfg)}",
-                          f"CF was {live!r} while local state was normal.\n"
-                          f"Restored to {cfg['CF_NORMAL_MODE']!r}; attack confirmation still pending.")
-            except Exception as exc:
-                logging.error("Drift check failed: %s", exc)
+            if not dry_run:
+                try:
+                    live = cf_get_mode(cfg)
+                    if live == cfg['CF_ATTACK_MODE']:
+                        logging.warning("Drift: CF already %s while local=normal — adopting attack state", live)
+                        state.update(mode='attack', last_switch=now, consecutive_count=0)
+                        alert(cfg, state,
+                              f"[cf-warden] Drift corrected — {_site(cfg)}",
+                              f"CF was already {live!r} during a high-score run.\n"
+                              f"Local state adopted attack mode.")
+                        save_state(cfg, state)
+                        return
+                    if state['consecutive_count'] < confirm and live != cfg['CF_NORMAL_MODE']:
+                        logging.warning("Drift: CF=%s but local=normal confirmation pending — restoring %s",
+                                        live, cfg['CF_NORMAL_MODE'])
+                        cf_set_mode(cfg, cfg['CF_NORMAL_MODE'])
+                        logging.info("Normal mode restored after drift during confirmation window")
+                        alert(cfg, state,
+                              f"[cf-warden] Drift corrected — {_site(cfg)}",
+                              f"CF was {live!r} while local state was normal.\n"
+                              f"Restored to {cfg['CF_NORMAL_MODE']!r}; attack confirmation still pending.")
+                except Exception as exc:
+                    logging.error("Drift check failed: %s", exc)
             if state['consecutive_count'] >= confirm:
                 try:
                     cf_set_mode(cfg, cfg['CF_ATTACK_MODE'])
@@ -419,19 +425,20 @@ def run_cron(cfg, state):
             if state.get('consecutive_count', 0):
                 logging.debug("Score %d below trigger, resetting consecutive count", score)
             state['consecutive_count'] = 0
-            try:
-                live = cf_get_mode(cfg)
-                if live != cfg['CF_NORMAL_MODE']:
-                    logging.warning("Drift: CF=%s but local=normal — restoring %s",
-                                    live, cfg['CF_NORMAL_MODE'])
-                    cf_set_mode(cfg, cfg['CF_NORMAL_MODE'])
-                    logging.info("Normal mode restored after drift")
-                    alert(cfg, state,
-                          f"[cf-warden] Drift corrected — {_site(cfg)}",
-                          f"CF was {live!r} while local state was normal.\n"
-                          f"Restored to {cfg['CF_NORMAL_MODE']!r}.")
-            except Exception as exc:
-                logging.error("Drift check failed: %s", exc)
+            if not dry_run:
+                try:
+                    live = cf_get_mode(cfg)
+                    if live != cfg['CF_NORMAL_MODE']:
+                        logging.warning("Drift: CF=%s but local=normal — restoring %s",
+                                        live, cfg['CF_NORMAL_MODE'])
+                        cf_set_mode(cfg, cfg['CF_NORMAL_MODE'])
+                        logging.info("Normal mode restored after drift")
+                        alert(cfg, state,
+                              f"[cf-warden] Drift corrected — {_site(cfg)}",
+                              f"CF was {live!r} while local state was normal.\n"
+                              f"Restored to {cfg['CF_NORMAL_MODE']!r}.")
+                except Exception as exc:
+                    logging.error("Drift check failed: %s", exc)
 
     elif mode == 'attack':
         elapsed = now - state.get('last_switch', now)
@@ -457,19 +464,20 @@ def run_cron(cfg, state):
                       f"Error: {exc}\n"
                       f"Local state unchanged: {mode}")
         else:
-            try:
-                live = cf_get_mode(cfg)
-                if live != cfg['CF_ATTACK_MODE']:
-                    logging.warning("Drift: CF=%s expected=%s — re-applying attack mode",
-                                    live, cfg['CF_ATTACK_MODE'])
-                    cf_set_mode(cfg, cfg['CF_ATTACK_MODE'])
-                    logging.info("Attack mode re-applied after drift")
-                    alert(cfg, state,
-                          f"[cf-warden] Drift corrected — {_site(cfg)}",
-                          f"CF was {live!r}, expected {cfg['CF_ATTACK_MODE']!r}.\n"
-                          f"Attack mode re-applied.")
-            except Exception as exc:
-                logging.error("Drift check failed: %s", exc)
+            if not dry_run:
+                try:
+                    live = cf_get_mode(cfg)
+                    if live != cfg['CF_ATTACK_MODE']:
+                        logging.warning("Drift: CF=%s expected=%s — re-applying attack mode",
+                                        live, cfg['CF_ATTACK_MODE'])
+                        cf_set_mode(cfg, cfg['CF_ATTACK_MODE'])
+                        logging.info("Attack mode re-applied after drift")
+                        alert(cfg, state,
+                              f"[cf-warden] Drift corrected — {_site(cfg)}",
+                              f"CF was {live!r}, expected {cfg['CF_ATTACK_MODE']!r}.\n"
+                              f"Attack mode re-applied.")
+                except Exception as exc:
+                    logging.error("Drift check failed: %s", exc)
             reasons = []
             if load5 >= load5_threshold:
                 reasons.append(f"load5={load5:.2f} >= {load5_threshold}")
