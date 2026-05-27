@@ -377,6 +377,18 @@ def run_cron(cfg, state):
             state['consecutive_count'] = 0
 
     elif mode == 'attack':
+        try:
+            live = cf_get_mode(cfg)
+            if live != cfg['CF_ATTACK_MODE']:
+                logging.warning("Drift detected: CF=%s expected=%s — re-applying attack mode", live, cfg['CF_ATTACK_MODE'])
+                cf_set_mode(cfg, cfg['CF_ATTACK_MODE'])
+                logging.info("Attack mode re-applied after drift")
+                alert(cfg, state,
+                      f"[cf-warden] Drift corrected — {_site(cfg)}",
+                      f"CF was {live!r}, expected {cfg['CF_ATTACK_MODE']!r}.\nAttack mode re-applied.")
+        except Exception as exc:
+            logging.error("Drift check failed: %s", exc)
+
         elapsed = now - state.get('last_switch', now)
         cooldown = int(cfg['COOLDOWN_SEC'])
         load5_threshold = float(cfg['LOAD_LOW_THRESHOLD'])
@@ -577,8 +589,8 @@ def main():
                 initial = 'attack' if live == cfg['CF_ATTACK_MODE'] else 'normal'
                 logging.info("CF live mode=%s → initial local mode=%s", live, initial)
             except Exception as exc:
-                logging.warning("Bootstrap CF API read failed (%s) — assuming normal", exc)
-                initial = 'normal'
+                _die(f"Bootstrap CF API read failed ({exc}) — cannot determine safe initial state. "
+                     f"Resolve connectivity and restart.")
             state = dict(_DEFAULT_STATE)
             state['mode'] = initial
             if initial == 'attack':

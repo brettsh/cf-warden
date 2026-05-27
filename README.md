@@ -6,14 +6,14 @@ every minute. No third-party dependencies — stdlib only.
 
 ## Why
 
-DDoS attacks cause high server load, but load alone is an unreliable trigger.
-Legitimate heavy tasks (e.g. PDF generation) also spike CPU without a
-corresponding spike in incoming requests. A single-signal trigger produces too
-many false positives.
+DDoS attacks drive up both CPU load and request rate simultaneously. Legitimate
+tasks (e.g. PDF generation) spike CPU without a request surge; legitimate busy
+periods spike requests without stressing the CPU. A single-signal trigger
+produces too many false positives.
 
-cf-warden uses a multi-signal points-based scoring system. No single signal can
-trigger attack mode on its own. This discriminates between legitimate load spikes
-and real attacks.
+cf-warden uses a proportional two-signal scoring system. Combined moderate
+signals trigger attack mode; extreme values of a single signal also trigger.
+This discriminates between legitimate load and real attacks.
 
 ## How it works
 
@@ -21,7 +21,7 @@ Each cron run:
 
 1. Reads the 1-minute CPU load average from `/proc/loadavg`
 2. Counts requests in the last 60 seconds from the nginx/Apache access log
-3. Scores each signal — base points if above threshold, bonus points if extreme
+3. Scores each signal proportionally: `int(load1 / LOAD_SCORE_DIVISOR) + int(reqs / REQ_SCORE_DIVISOR)`
 4. If the total score reaches the trigger threshold for N consecutive runs,
    switches Cloudflare to `under_attack` mode via the API
 5. Switches back to normal once the 5-minute load drops below the low threshold
@@ -79,7 +79,7 @@ All settings live in `settings.conf`. Key options:
 | `CF_API_TOKEN` | Cloudflare API token with zone edit permission |
 | `CF_ATTACK_MODE` | CF security level to activate (default: `under_attack`) |
 | `CF_NORMAL_MODE` | CF security level to restore (default: `medium`) |
-| `SCORE_TRIGGER` | Score needed to activate attack mode (default: 4) |
+| `SCORE_TRIGGER` | Score needed to activate attack mode (default: 100) |
 | `SCORE_CONFIRM_COUNT` | Consecutive runs above threshold before switching (default: 1) |
 | `COOLDOWN_SEC` | Minimum seconds between mode switches (default: 900) |
 | `EMAIL_ENABLED` | Send email alerts on mode changes (true/false) |
