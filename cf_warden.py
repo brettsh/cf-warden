@@ -102,6 +102,22 @@ def load_config():
             errors.append("LOAD_SCORE_DIVISOR must be greater than 0")
         if int(cfg['REQ_SCORE_DIVISOR']) <= 0:
             errors.append("REQ_SCORE_DIVISOR must be greater than 0")
+        if float(cfg['LOAD_LOW_THRESHOLD']) <= 0:
+            errors.append("LOAD_LOW_THRESHOLD must be greater than 0")
+        if int(cfg['SCORE_TRIGGER']) < 1:
+            errors.append("SCORE_TRIGGER must be >= 1")
+        if int(cfg['SCORE_CONFIRM_COUNT']) < 1:
+            errors.append("SCORE_CONFIRM_COUNT must be >= 1")
+        if int(cfg['ACCESS_LOG_WINDOW_SEC']) < 1:
+            errors.append("ACCESS_LOG_WINDOW_SEC must be >= 1")
+        if int(cfg['COOLDOWN_SEC']) < 0:
+            errors.append("COOLDOWN_SEC must be >= 0")
+        if int(cfg['ALERT_COOLDOWN_SEC']) < 0:
+            errors.append("ALERT_COOLDOWN_SEC must be >= 0")
+        if int(cfg['LOG_MAX_BYTES']) < 1:
+            errors.append("LOG_MAX_BYTES must be >= 1")
+        if int(cfg['LOG_BACKUP_COUNT']) < 0:
+            errors.append("LOG_BACKUP_COUNT must be >= 0")
         if cfg.get('SMTP_HOST') and cfg.get('SMTP_USERNAME') and 'SMTP_PASSWORD' not in cfg:
             errors.append("SMTP_USERNAME is set but SMTP_PASSWORD is missing")
 
@@ -308,7 +324,7 @@ def _send_email(cfg, subject, body):
                     s.login(cfg['SMTP_USERNAME'], cfg['SMTP_PASSWORD'])
                 s.send_message(msg)
     except Exception as exc:
-        logging.error("Email failed: %s", exc)
+        raise RuntimeError(f"Email failed: {exc}") from exc
 
 
 def _site(cfg):
@@ -320,8 +336,11 @@ def alert(cfg, state, subject, body, rate_limit=True):
     if rate_limit and now - state.get('last_alert', 0) < int(cfg['ALERT_COOLDOWN_SEC']):
         logging.debug("Alert suppressed (cooldown): %s", subject)
         return
-    _send_email(cfg, subject, body)
-    state['last_alert'] = now
+    try:
+        _send_email(cfg, subject, body)
+        state['last_alert'] = now
+    except Exception as exc:
+        logging.error("%s", exc)
 
 
 # ── Cron run ──────────────────────────────────────────────────────────────────
@@ -375,20 +394,21 @@ def run_cron(cfg, state):
             if state.get('consecutive_count', 0):
                 logging.debug("Score %d below trigger, resetting consecutive count", score)
             state['consecutive_count'] = 0
+            try:
+                live = cf_get_mode(cfg)
+                if live == cfg['CF_ATTACK_MODE']:
+                    logging.warning("Drift: CF=%s but local=normal — restoring %s",
+                                    live, cfg['CF_NORMAL_MODE'])
+                    cf_set_mode(cfg, cfg['CF_NORMAL_MODE'])
+                    logging.info("Normal mode restored after drift")
+                    alert(cfg, state,
+                          f"[cf-warden] Drift corrected — {_site(cfg)}",
+                          f"CF was stuck at {live!r} while local state was normal.\n"
+                          f"Restored to {cfg['CF_NORMAL_MODE']!r}.")
+            except Exception as exc:
+                logging.error("Drift check failed: %s", exc)
 
     elif mode == 'attack':
-        try:
-            live = cf_get_mode(cfg)
-            if live != cfg['CF_ATTACK_MODE']:
-                logging.warning("Drift detected: CF=%s expected=%s — re-applying attack mode", live, cfg['CF_ATTACK_MODE'])
-                cf_set_mode(cfg, cfg['CF_ATTACK_MODE'])
-                logging.info("Attack mode re-applied after drift")
-                alert(cfg, state,
-                      f"[cf-warden] Drift corrected — {_site(cfg)}",
-                      f"CF was {live!r}, expected {cfg['CF_ATTACK_MODE']!r}.\nAttack mode re-applied.")
-        except Exception as exc:
-            logging.error("Drift check failed: %s", exc)
-
         elapsed = now - state.get('last_switch', now)
         cooldown = int(cfg['COOLDOWN_SEC'])
         load5_threshold = float(cfg['LOAD_LOW_THRESHOLD'])
@@ -412,6 +432,19 @@ def run_cron(cfg, state):
                       f"Error: {exc}\n"
                       f"Local state unchanged: {mode}")
         else:
+            try:
+                live = cf_get_mode(cfg)
+                if live != cfg['CF_ATTACK_MODE']:
+                    logging.warning("Drift: CF=%s expected=%s — re-applying attack mode",
+                                    live, cfg['CF_ATTACK_MODE'])
+                    cf_set_mode(cfg, cfg['CF_ATTACK_MODE'])
+                    logging.info("Attack mode re-applied after drift")
+                    alert(cfg, state,
+                          f"[cf-warden] Drift corrected — {_site(cfg)}",
+                          f"CF was {live!r}, expected {cfg['CF_ATTACK_MODE']!r}.\n"
+                          f"Attack mode re-applied.")
+            except Exception as exc:
+                logging.error("Drift check failed: %s", exc)
             reasons = []
             if load5 >= load5_threshold:
                 reasons.append(f"load5={load5:.2f} >= {load5_threshold}")
