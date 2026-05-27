@@ -19,21 +19,22 @@ score = int(load1 / LOAD_SCORE_DIVISOR) + int(reqs / REQ_SCORE_DIVISOR)
 
 ### CPU Load (1-minute average)
 
-| load1 | Score (LOAD_SCORE_DIVISOR=0.15) |
+| load1 | Score (LOAD_SCORE_DIVISOR=0.27) |
 |-------|---------------------------------|
-| 3     | 20                              |
-| 6     | 40                              |
-| 10    | 66                              |
-| 15    | 100 ← triggers alone            |
+| 3     | 11                              |
+| 10    | 37                              |
+| 17    | 62                              |
+| 25    | 92                              |
+| 28    | 103 ← triggers alone            |
 
 ### Nginx Request Rate (last 60 seconds)
 
-| req/60s | Score (REQ_SCORE_DIVISOR=10) |
+| req/60s | Score (REQ_SCORE_DIVISOR=25) |
 |---------|------------------------------|
-| 125     | 12                           |
-| 400     | 40                           |
-| 800     | 80                           |
-| 1000    | 100 ← triggers alone         |
+| 125     | 5                            |
+| 500     | 20                           |
+| 1000    | 40                           |
+| 2500    | 100 ← triggers alone         |
 
 ## Trigger
 
@@ -41,17 +42,21 @@ score = int(load1 / LOAD_SCORE_DIVISOR) + int(reqs / REQ_SCORE_DIVISOR)
   → switch to attack mode
 - Score resets consecutive count if it drops below SCORE_TRIGGER between runs
 
-## Example Scenarios (suggested defaults, SCORE_TRIGGER=100)
+## Example Scenarios (LOAD_SCORE_DIVISOR=0.27, REQ_SCORE_DIVISOR=25, SCORE_TRIGGER=100)
 
-| Scenario                            | Load pts | Req pts | Total | Triggers? |
-|-------------------------------------|----------|---------|-------|-----------|
-| Idle (load=1, reqs=50)              | 6        | 5       | 11    | No        |
-| PDF generation (load=10, reqs=50)   | 66       | 5       | 71    | No        |
-| Traffic spike only (load=2, reqs=600)| 13      | 60      | 73    | No        |
-| Moderate attack (load=6, reqs=600)  | 40       | 60      | 100   | Yes       |
-| Heavy attack (load=8, reqs=800)     | 53       | 80      | 133   | Yes       |
-| Extreme req spike only (reqs=1000)  | 0        | 100     | 100   | Yes       |
-| Extreme load only (load=15)         | 100      | 0       | 100   | Yes       |
+| Scenario                                  | Load pts | Req pts | Total | Triggers? |
+|-------------------------------------------|----------|---------|-------|-----------|
+| Idle (load=1, reqs=50)                    | 3        | 2       | 5     | No        |
+| PDF generation (load=10, reqs=50)         | 37       | 2       | 39    | No        |
+| High traffic, low load (load=3, reqs=1405)| 11       | 56      | 67    | No        |
+| Transient load spike (load=25, reqs=50)   | 92       | 2       | 94    | No        |
+| Moderate attack (load=17, reqs=877)       | 63       | 35      | 98    | No*       |
+| Real attack (load=18, reqs=877)           | 66       | 35      | 101   | Yes       |
+| Heavy attack (load=36, reqs=1138)         | 133      | 45      | 178   | Yes       |
+| Extreme load only (load=28)               | 103      | 0       | 103   | Yes       |
+| Extreme reqs only (reqs=2500)             | 0        | 100     | 100   | Yes       |
+
+\* Real incident data: May 20 attack triggered at load=17.99, reqs=877 → 101 pts.
 
 ## Traffic Baseline (from log analysis)
 
