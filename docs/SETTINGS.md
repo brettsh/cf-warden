@@ -7,7 +7,7 @@ Copy settings.conf.example and fill in your values.
 
 | Setting | Example | Description |
 |---------|---------|-------------|
-| DRY_RUN | false   | Set to `true` to simulate mode switches without calling the CF API. State, scoring, and alerts behave normally — only the API call is skipped. |
+| DRY_RUN | false   | Set to `true` to simulate mode switches without calling the CF API. State, scoring, and alerts behave normally — only the CF API calls (mode switches and drift checks) are skipped. |
 
 ## Cloudflare
 

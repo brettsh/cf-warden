@@ -319,9 +319,9 @@ def _send_email(cfg, subject, body):
             host = cfg['SMTP_HOST']
             port = int(cfg.get('SMTP_PORT', '25'))
             if port == 465:
-                smtp = smtplib.SMTP_SSL(host, port)
+                smtp = smtplib.SMTP_SSL(host, port, timeout=15)
             else:
-                smtp = smtplib.SMTP(host, port)
+                smtp = smtplib.SMTP(host, port, timeout=15)
             with smtp as s:
                 if port == 587:
                     s.ehlo()
