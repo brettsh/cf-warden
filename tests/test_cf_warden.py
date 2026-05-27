@@ -217,6 +217,24 @@ class TestStateMachineDrift(unittest.TestCase):
             self.assertTrue(state_path.exists())
             self.assertFalse(list(Path(d).glob('state.corrupt.*')))
 
+    def test_invalid_mode_in_state_treated_as_corrupt(self):
+        with tempfile.TemporaryDirectory() as d:
+            state_path = Path(d) / 'state.json'
+            state_path.write_text('{"mode": "broken", "last_switch": 0.0, "consecutive_count": 0, "last_alert": 0.0}')
+            cfg = self._cfg(Path(d))
+            state, was_corrupt = cf_warden.load_state(cfg, preserve_corrupt=False)
+            self.assertIsNone(state)
+            self.assertTrue(was_corrupt)
+
+    def test_bad_field_type_in_state_treated_as_corrupt(self):
+        with tempfile.TemporaryDirectory() as d:
+            state_path = Path(d) / 'state.json'
+            state_path.write_text('{"mode": "normal", "last_switch": "not-a-number", "consecutive_count": 0, "last_alert": 0.0}')
+            cfg = self._cfg(Path(d))
+            state, was_corrupt = cf_warden.load_state(cfg, preserve_corrupt=False)
+            self.assertIsNone(state)
+            self.assertTrue(was_corrupt)
+
 
 if __name__ == '__main__':
     unittest.main()

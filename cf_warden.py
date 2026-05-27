@@ -154,6 +154,16 @@ def setup_logging(cfg):
 _DEFAULT_STATE = {'mode': 'normal', 'last_switch': 0.0, 'consecutive_count': 0, 'last_alert': 0.0}
 
 
+def _validate_state(data):
+    if data.get('mode') not in ('normal', 'attack'):
+        raise ValueError(f"invalid mode {data.get('mode')!r}")
+    for key in ('last_switch', 'last_alert'):
+        if not isinstance(data.get(key), (int, float)) or isinstance(data.get(key), bool):
+            raise ValueError(f"invalid {key} {data.get(key)!r}")
+    if not isinstance(data.get('consecutive_count'), int) or isinstance(data.get('consecutive_count'), bool):
+        raise ValueError(f"invalid consecutive_count {data.get('consecutive_count')!r}")
+
+
 def load_state(cfg, preserve_corrupt=True):
     p = Path(cfg['STATE_DIR']) / 'state.json'
     if not p.exists():
@@ -162,6 +172,7 @@ def load_state(cfg, preserve_corrupt=True):
         data = json.loads(p.read_text())
         if not isinstance(data, dict):
             raise ValueError("not a JSON object")
+        _validate_state(data)
         return data, False
     except Exception as exc:
         if not preserve_corrupt:
