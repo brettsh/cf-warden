@@ -66,9 +66,11 @@ is extreme. This discriminates between legitimate load and actual attacks.
 
 ### Cloudflare Ownership
 - cf-warden is the sole owner of the zone's security level once deployed
-- Local state files are the source of truth — the CF API is never read during
-  normal runs (except `status`, which shows live CF mode for drift detection)
-- Manual dashboard changes will be silently overwritten on the next auto transition
+- Local state files drive the state machine, and cron reads the live CF mode to
+  detect and correct drift against the expected mode
+- `status` shows live CF mode for drift detection without mutating state files
+- Manual dashboard changes are corrected on subsequent cron runs unless they
+  already match the state machine's expected transition
 
 ### Manual override
 - Script accepts `enable` and `disable` arguments for manual control

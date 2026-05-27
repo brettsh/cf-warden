@@ -145,5 +145,78 @@ class TestConfigValidation(unittest.TestCase):
         self._assert_fails()
 
 
+class TestStateMachineDrift(unittest.TestCase):
+
+    def _cfg(self, state_dir, confirm='1'):
+        return {
+            'CF_ZONE_ID': 'zone123',
+            'CF_API_TOKEN': 'token123',
+            'CF_ATTACK_MODE': 'under_attack',
+            'CF_NORMAL_MODE': 'medium',
+            'EMAIL_ENABLED': 'false',
+            'LOAD_SCORE_DIVISOR': '0.27',
+            'LOAD_LOW_THRESHOLD': '4',
+            'REQ_SCORE_DIVISOR': '25',
+            'ACCESS_LOG_PATH': '/var/log/nginx/access.log',
+            'ACCESS_LOG_WINDOW_SEC': '60',
+            'SCORE_TRIGGER': '100',
+            'SCORE_CONFIRM_COUNT': confirm,
+            'COOLDOWN_SEC': '600',
+            'ALERT_COOLDOWN_SEC': '600',
+            'STATE_DIR': str(state_dir),
+            'LOG_FILE': str(state_dir / 'cf-warden.log'),
+            'LOG_LEVEL': 'INFO',
+        }
+
+    def _run(self, cfg, state, load=(1.0, 1.0), reqs=0, live='medium'):
+        patches = [
+            unittest.mock.patch('cf_warden.read_cpu_load', return_value=load),
+            unittest.mock.patch('cf_warden.count_requests', return_value=reqs),
+            unittest.mock.patch('cf_warden.cf_get_mode', return_value=live),
+            unittest.mock.patch('cf_warden.alert'),
+        ]
+        with patches[0], patches[1], patches[2], patches[3]:
+            with unittest.mock.patch('cf_warden.cf_set_mode') as set_mode:
+                cf_warden.run_cron(cfg, state)
+                return set_mode
+
+    def test_normal_mode_restores_any_non_normal_drift_below_trigger(self):
+        with tempfile.TemporaryDirectory() as d:
+            cfg = self._cfg(Path(d))
+            state = dict(cf_warden._DEFAULT_STATE)
+            set_mode = self._run(cfg, state, load=(1.0, 1.0), reqs=0, live='high')
+            set_mode.assert_called_once_with(cfg, 'medium')
+            self.assertEqual(state['mode'], 'normal')
+
+    def test_normal_mode_restores_drift_while_confirmation_pending(self):
+        with tempfile.TemporaryDirectory() as d:
+            cfg = self._cfg(Path(d), confirm='2')
+            state = dict(cf_warden._DEFAULT_STATE)
+            set_mode = self._run(cfg, state, load=(18.0, 1.0), reqs=877, live='high')
+            set_mode.assert_called_once_with(cfg, 'medium')
+            self.assertEqual(state['mode'], 'normal')
+            self.assertEqual(state['consecutive_count'], 1)
+
+    def test_normal_mode_adopts_live_attack_during_high_score_run(self):
+        with tempfile.TemporaryDirectory() as d:
+            cfg = self._cfg(Path(d), confirm='2')
+            state = dict(cf_warden._DEFAULT_STATE)
+            set_mode = self._run(cfg, state, load=(18.0, 1.0), reqs=877, live='under_attack')
+            set_mode.assert_not_called()
+            self.assertEqual(state['mode'], 'attack')
+            self.assertEqual(state['consecutive_count'], 0)
+
+    def test_status_state_read_does_not_rename_corrupt_state(self):
+        with tempfile.TemporaryDirectory() as d:
+            state_path = Path(d) / 'state.json'
+            state_path.write_text('{not json')
+            cfg = self._cfg(Path(d))
+            state, was_corrupt = cf_warden.load_state(cfg, preserve_corrupt=False)
+            self.assertIsNone(state)
+            self.assertTrue(was_corrupt)
+            self.assertTrue(state_path.exists())
+            self.assertFalse(list(Path(d).glob('state.corrupt.*')))
+
+
 if __name__ == '__main__':
     unittest.main()
