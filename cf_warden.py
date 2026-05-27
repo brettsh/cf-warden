@@ -118,6 +118,8 @@ def load_config():
             errors.append("LOG_MAX_BYTES must be >= 1")
         if int(cfg['LOG_BACKUP_COUNT']) < 0:
             errors.append("LOG_BACKUP_COUNT must be >= 0")
+        if cfg['LOG_LEVEL'].upper() not in ('INFO', 'DEBUG'):
+            errors.append(f"LOG_LEVEL must be INFO or DEBUG (got {cfg['LOG_LEVEL']!r})")
         if cfg.get('SMTP_HOST') and cfg.get('SMTP_USERNAME') and 'SMTP_PASSWORD' not in cfg:
             errors.append("SMTP_USERNAME is set but SMTP_PASSWORD is missing")
 
