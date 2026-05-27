@@ -44,8 +44,8 @@ ACCESS_LOG_WINDOW_SEC=60
 # ── Trigger Behaviour ─────────────────────────────────────────────────────────
 SCORE_TRIGGER=100
 SCORE_CONFIRM_COUNT=1
-COOLDOWN_SEC=600
-ALERT_COOLDOWN_SEC=600
+COOLDOWN_SEC=300
+ALERT_COOLDOWN_SEC=300
 
 # ── Paths and Logging ─────────────────────────────────────────────────────────
 STATE_DIR=/var/tmp/cf-warden
