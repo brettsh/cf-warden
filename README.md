@@ -1,7 +1,7 @@
 # cf-warden
 
-A lightweight Python daemon that monitors server health signals and automatically
-switches Cloudflare's security mode via the Cloudflare API. Runs as a cron job
+A lightweight Linux Python daemon that monitors server health signals and automatically  
+switches Cloudflare's security mode via the Cloudflare API. Runs as a cron job  
 every minute. No third-party dependencies — stdlib only.
 
 ## Why
@@ -42,6 +42,7 @@ detailed behaviour.
 ```bash
 git clone https://github.com/brettsh/cf-warden.git
 cd cf-warden
+chmod +x cf_warden.py status
 cp settings.conf.example settings.conf
 ```
 
@@ -57,10 +58,11 @@ Add a cron entry to run every minute:
 ## Usage
 
 ```bash
-python3 cf_warden.py              # normal cron run
-python3 cf_warden.py status       # print current load, request rate, score, CF mode
-python3 cf_warden.py enable       # manually activate attack mode
-python3 cf_warden.py disable      # manually restore normal mode
+cd /path/to/cf-warden/
+cf_warden.py              # normal cron run
+cf_warden.py status       # print current load, request rate, score, CF mode
+cf_warden.py enable       # manually activate attack mode
+cf_warden.py disable      # manually restore normal mode
 ```
 
 `status` shows a full snapshot including local state, live Cloudflare mode  
